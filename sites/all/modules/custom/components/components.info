@@ -1,0 +1,9 @@
+name = Splash Components
+description = Create layout and design the template html without coding
+package = Splash Conponents
+core = 7.x
+
+; Information added by Drupal.org packaging script on 2014-10-21
+version = "7.x-1.0"
+
+

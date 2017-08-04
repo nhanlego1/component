@@ -1,0 +1,777 @@
+<?php
+/**
+ * Created by PhpStorm.
+ * User: nhanle
+ * Date: 7/3/17
+ * Time: 9:43 AM
+ */
+/**
+ * Implement hook_menu
+ */
+function components_menu()
+{
+    $items = array();
+    $items['components/create'] = array(
+        'title' => t('Create new layout.'),
+        'page callback' => 'components_create_new_layout',
+        'access arguments' => array('access content'),
+        'type' => MENU_CALLBACK,
+    );
+    $items['components/layout/%node'] = array(
+        'title' => t('Create new layout.'),
+        'page callback' => 'components_update_layout',
+        'page arguments' => array(2),
+        'access arguments' => array('access content'),
+        'type' => MENU_CALLBACK,
+    );
+    $items['preview/layout/%node'] = array(
+        'title' => t('Preview'),
+        'page callback' => 'components_preview_layout',
+        'page arguments' => array(2),
+        'access arguments' => array('access content'),
+        'type' => MENU_CALLBACK,
+    );
+    $items['components/save'] = array(
+        'title' => t('Create new layout.'),
+        'page callback' => 'components_save_layout',
+        'access arguments' => array('access content'),
+        'type' => MENU_CALLBACK,
+    );
+    $items['components/export/component'] = array(
+        'title' => t('Save as component.'),
+        'page callback' => 'components_save_export_component',
+        'access arguments' => array('access content'),
+        'type' => MENU_CALLBACK,
+    );
+    $items['components/update/image'] = array(
+        'title' => t('Create new layout.'),
+        'page callback' => 'components_update_image',
+        'access arguments' => array('access content'),
+        'type' => MENU_CALLBACK,
+    );
+    $items['admin/config/content/components'] = array(
+        'title' => 'Splash Component setting ',
+        'description' => 'Control config for component.',
+        'page callback' => 'drupal_get_form',
+        'page arguments' => array('component_admin'),
+        'access arguments' => array('administer component'),
+        'file' => 'components.admin.inc',
+    );
+    $items['assets/upload'] = array(
+        'title' => t('Upload assets.'),
+        'page callback' => 'components_asset_upload',
+        'access arguments' => array('access content'),
+        'type' => MENU_CALLBACK,
+    );
+
+    return $items;
+}
+
+/**
+ * Implements hook_permission().
+ */
+function components_permission()
+{
+    return array(
+        'administer component' => array(
+            'title' => t('Administer Component'),
+            'restrict access' => TRUE,
+        ),
+    );
+}
+
+/**
+ * Implementation of hook_theme().
+ */
+function components_theme()
+{
+    $items = array();
+    $items['components_create'] = array(
+        'render element' => 'element',
+        'path' => drupal_get_path('module', 'components') . '/theme',
+        'template' => 'create',
+    );
+    $items['components_update'] = array(
+        'render element' => 'element',
+        'path' => drupal_get_path('module', 'components') . '/theme',
+        'template' => 'update',
+    );
+    $items['components_preview'] = array(
+        'render element' => 'element',
+        'path' => drupal_get_path('module', 'components') . '/theme',
+        'template' => 'preview',
+    );
+    $items['components_component'] = array(
+        'render element' => 'element',
+        'path' => drupal_get_path('module', 'components') . '/theme',
+        'template' => 'component',
+    );
+    $items['components_save'] = array(
+        'render element' => 'element',
+        'path' => drupal_get_path('module', 'components') . '/theme',
+        'template' => 'save',
+    );
+    $items['components_block'] = array(
+        'render element' => 'element',
+        'path' => drupal_get_path('module', 'components') . '/theme',
+        'template' => 'block',
+    );
+    $items['component_navbar'] = array(
+        'render element' => 'element',
+        'path' => drupal_get_path('module', 'components') . '/theme',
+        'template' => 'navbar',
+    );
+    $items['component_logo'] = array(
+        'render element' => 'element',
+        'path' => drupal_get_path('module', 'components') . '/theme',
+        'template' => 'logo',
+    );
+    $items['component_footer'] = array(
+        'render element' => 'element',
+        'path' => drupal_get_path('module', 'components') . '/theme',
+        'template' => 'footer',
+    );
+    $items['component_content'] = array(
+        'render element' => 'element',
+        'path' => drupal_get_path('module', 'components') . '/theme',
+        'template' => 'content',
+    );
+    return $items;
+}
+
+/**
+ * Implement intergrate create layout
+ */
+function components_create_new_layout()
+{
+    global $user;
+    if ($user->uid <= 0) {
+        drupal_goto('user/login', array('query' => array('destination' => 'components/create')));
+    }
+    return theme('components_create');
+}
+
+/**
+ * Implementation of hook_block_info().
+ */
+function components_block_info()
+{
+    $blocks = array();
+    $blocks['components_create'] = array('info' => t('Create layout'));
+    return $blocks;
+}
+
+/**
+ * Implementation of hook_block_view().
+ */
+function components_block_view($delta = '')
+{
+    switch ($delta) {
+        case 'components_create':
+            return array(
+                'subject' => t('Create layout'),
+                'content' => components_create_new_layout(),
+            );
+
+            break;
+
+
+    }
+}
+
+/**
+ * Get component dynamic
+ */
+function components_get_components()
+{
+    $query = db_select('node', 'n');
+    $query->fields('n');
+    $query->condition('type', 'component');
+    $query->condition('status', NODE_PUBLISHED);
+    $result = $query->execute()->fetchAll();
+    $nodes = array();
+    if ($result) {
+        foreach ($result as $n) {
+            $nodes[] = node_load($n->nid);
+        }
+    }
+    return theme('components_component', array('nodes' => $nodes));
+}
+
+/**
+ * Get component css
+ */
+
+function components_get_data()
+{
+    $query = db_select('node', 'n');
+    $query->fields('n');
+    $query->condition('type', 'component');
+    $query->condition('status', NODE_PUBLISHED);
+    $result = $query->execute()->fetchAll();
+    $output = '';
+    if ($result) {
+        foreach ($result as $n) {
+            $node = node_load($n->nid);
+            $output .= '<style>' . $node->field_css_code[LANGUAGE_NONE][0]['value'] . '</style>';
+        }
+    }
+    return $output;
+}
+
+/**
+ * Minify function
+ */
+function components_minify($data, $type = 'html')
+{
+    require_once("lib/phpwee-php-minifier/phpwee.php");
+    if ($type == 'css') {
+        $buffer = PHPWee\Minify::css($data);
+    }
+    if ($type == 'js') {
+        $buffer = PHPWee\Minify::js($data);
+    }
+    if ($type == 'html') {
+        $search = array(
+            '/\>[^\S ]+/s',
+            '/[^\S ]+\</s',
+            '/(\s)+/s'
+        );
+        $replace = array(
+            '>',
+            '<',
+            '\\1'
+        );
+
+        $buffer = preg_replace($search, $replace, $data);
+    }
+    return $buffer;
+}
+
+/**
+ * @param $form
+ * @param $form_state
+ * @param $form_id
+ * Implement hook_form_alter
+ */
+function components_form_alter(&$form, &$form_state, $form_id)
+{
+
+    if ($form_id == 'component_admin') {
+        drupal_add_js(drupal_get_path('module', 'components') . '/lib/codemirror-3.11/lib/codemirror.js');
+        drupal_add_js(drupal_get_path('module', 'components') . '/lib/codemirror-3.11/mode/css/css.js');
+        drupal_add_css(drupal_get_path('module', 'components') . '/lib/codemirror-3.11/lib/codemirror.css');
+
+        drupal_add_js(drupal_get_path('module', 'components') . '/js/components.js');
+    }
+    if ($form_id == 'component_node_form' || $form_id == 'template_node_form') {
+        drupal_add_js(drupal_get_path('module', 'components') . '/lib/codemirror-3.11/lib/codemirror.js');
+        drupal_add_js(drupal_get_path('module', 'components') . '/lib/codemirror-3.11/mode/css/css.js');
+        drupal_add_css(drupal_get_path('module', 'components') . '/lib/codemirror-3.11/lib/codemirror.css');
+
+        drupal_add_js(drupal_get_path('module', 'components') . '/js/com_node.js');
+    }
+}
+
+/**
+ * Save html
+ */
+function components_save_layout()
+{
+    global $user;
+    if (isset($_POST)) {
+        $title = $_POST['name'];
+        $image = $_POST['image'];
+        $html = $_POST['html'];
+        $style = $_POST['css'];
+        if (isset($_POST['nid']) && $_POST['nid'] > 0) {
+            $nid = $_POST['nid'];
+            $node = node_load($nid);
+            $node->changed = REQUEST_TIME;
+            $node->title = $title;
+            $node->field_html_code[LANGUAGE_NONE][0]['value'] = $html;//str_replace(components_remove_content_in_tags($html, 'style'), '', $html);
+            $node->field_css_code[LANGUAGE_NONE][0]['value'] = $style;//components_content_in_tags($html, 'style');
+            $image = explode(',', $image);
+            //save image first
+            $filename = time() . '.png';
+            $image_data = base64_decode($image[1]);
+            $file = file_save_data($image_data, file_default_scheme() . '://' . $filename);
+            $file->status = 1;
+            $node->field_image['und'][0] = (array)$file;
+        } else {
+            $node = new stdClass();
+            $node->type = 'template';
+            $node->language = LANGUAGE_NONE;
+            $node->title = $title;
+            $node->uid = $user->uid;
+            $node->created = REQUEST_TIME;
+            $node->changed = REQUEST_TIME;
+            $node->status = NODE_PUBLISHED;
+            $node->field_html_code[LANGUAGE_NONE][0]['value'] = $html;//str_replace(components_remove_content_in_tags($html, 'style'), '', $html);
+            $node->field_css_code[LANGUAGE_NONE][0]['value'] = $style;//components_content_in_tags($html, 'style');
+            $image = explode(',', $image);
+            //save image first
+            $filename = time() . '.png';
+            $image_data = base64_decode($image[1]);
+            $file = file_save_data($image_data, file_default_scheme() . '://' . $filename);
+            $file->status = 1;
+            $node->field_image['und'][0] = (array)$file;
+
+        }
+        node_save($node);
+        //save menu
+        _save_to_nav($node->nid, $html);
+        //save logo
+        _save_logo_to_header($node->nid, $html);
+        //save footer
+        _save_footer($node->nid, $html);
+        print $node->nid;
+        drupal_exit();
+    } else {
+        print 'not Ok';
+        drupal_exit();
+    }
+}
+
+/**
+ * Export component
+ */
+function components_save_export_component()
+{
+    global $user;
+    if (isset($_POST)) {
+        $title = $_POST['name'];
+        $image = $_POST['image'];
+        $html = $_POST['html'];
+        $style = $_POST['css'];
+        $node = new stdClass();
+        $node->type = 'component';
+        $node->language = LANGUAGE_NONE;
+        $node->title = $title;
+        $node->uid = $user->uid;
+        $node->created = REQUEST_TIME;
+        $node->changed = REQUEST_TIME;
+        $node->status = NODE_PUBLISHED;
+        $node->field_html_code[LANGUAGE_NONE][0]['value'] = $html;//str_replace(components_remove_content_in_tags($html, 'style'), '', $html);
+        $node->field_css_code[LANGUAGE_NONE][0]['value'] = $style;//components_content_in_tags($html, 'style');
+        $node->field_icon[LANGUAGE_NONE][0]['value'] = $image;
+        node_save($node);
+        print $node->nid;
+        drupal_exit();
+
+    } else {
+        print 'not done';
+        drupal_exit();
+    }
+
+}
+
+/**
+ * @param $node
+ * @return string
+ */
+function components_update_layout($node)
+{
+    global $user;
+    if ($user->uid <= 0) {
+        drupal_goto('user/login', array('query' => array('destination' => 'components/create')));
+    }
+    return theme('components_update', array('node' => $node));
+}
+
+/**
+ * @param $node
+ * @return string
+ */
+function components_preview_layout($node)
+{
+    drupal_add_css(drupal_get_path('module', 'components') . '/lib/flexslider/flexslider.css');
+   // drupal_add_css(drupal_get_path('module', 'components') . '/lib/slick/slick-theme.css');
+    drupal_add_js(drupal_get_path('module', 'components') . '/lib/flexslider/jquery.flexslider-min.js');
+    return theme('components_preview', array('node' => $node));
+}
+
+/**
+ * @param $string
+ * @param $tagname
+ * @return mixed
+ */
+function components_content_in_tags($string, $tagname)
+{
+
+    $dom = new domDocument();
+    // load the html into the object ***/
+    $dom->loadHTML($string);
+    //discard white space
+    $dom->preserveWhiteSpace = false;
+    $hTwo = $dom->getElementsByTagName($tagname);
+    $output = '';
+    foreach ($hTwo as $html) {
+        // dsm($html);
+        $output .= $html->nodeValue;
+    }
+    return $output;
+}
+
+/**
+ * @param $string
+ * @param $tagname
+ * @return mixed
+ */
+function components_content_in_Idname($string, $id)
+{
+
+    $dom = new domDocument();
+    // load the html into the object ***/
+    $dom->loadHTML($string);
+    //discard white space
+    $dom->preserveWhiteSpace = false;
+    $hTwo = $dom->getElementById($id);
+    $output = '';
+    $output = $hTwo->nodeValue;
+    return $output;
+}
+
+/**
+ * @param $string
+ * @param $tagname
+ * @return string
+ */
+function components_remove_content_in_tags($string, $tagname)
+{
+
+    $dom = new domDocument();
+    // load the html into the object ***/
+    $dom->loadHTML($string);
+    //discard white space
+    $dom->preserveWhiteSpace = false;
+    $hTwo = $dom->getElementsByTagName($tagname);
+    $rm = array();
+    $rm[] = '<style>';
+    $rm[] = '</style>';
+    foreach ($hTwo as $html) {
+        // dsm($html);
+        $rm[] = $html->nodeValue;
+    }
+    return $rm;
+}
+
+/**
+ * @param $string
+ * @param $tagname
+ * @return string
+ */
+function components_remove_content_in_Id($string, $id, $string_replace)
+{
+
+    $dom = new domDocument();
+    // load the html into the object ***/
+    $dom->loadHTML($string);
+    //discard white space
+    $output = '';
+    $dom->preserveWhiteSpace = false;
+
+    $content = $dom->getElementById($id);
+    // $rm = $hTwo->nodeValue;
+    $content->nodeValue = $string_replace;
+    $output = $content->nodeValue;
+
+    return $output;
+}
+
+/**
+ * Update image screen
+ */
+function components_update_image()
+{
+    if (isset($_POST)) {
+        $img = $_POST['image'];
+        $nid = $_POST['nid'];
+        $node = false;
+        if ($nid) {
+            $node = node_load($nid);
+        }
+        if ($node) {
+            $image = explode(',', $img);
+            //save image first
+            $filename = time() . '.png';
+            $image_data = base64_decode($image[1]);
+            $file = file_save_data($image_data, file_default_scheme() . '://' . $filename);
+            $file->status = 1;
+            $node->field_image['und'][0] = (array)$file;
+            node_save($node);
+        }
+    }
+}
+
+/**
+ * Upload image
+ */
+function components_asset_upload()
+{
+    //print_r($_FILES);
+    global $user;
+    if (isset($_FILES)) {
+        $file = file_save_upload(0, array('png', 'jpg', 'jpeg'), 'public://', FILE_EXISTS_RENAME);
+        $node = new stdClass();
+        $node->type = 'assets';
+        $node->status = NODE_PUBLISHED;
+        $node->language = LANGUAGE_NONE;
+        $node->uid = $user->uid;
+        $node->title = $_FILES['files']['name'][0];
+        $node->field_image[LANGUAGE_NONE][0] = (array)$file;
+        node_save($node);
+        print '/sites/default/files/' . str_replace('public://', '', $node->field_image[LANGUAGE_NONE][0]['uri']);
+    }
+}
+
+/**
+ * Get all image
+ */
+function component_get_assets()
+{
+    $query = db_select('node', 'n');
+    $query->fields('n');
+    $query->condition('type', 'assets');
+    $query->condition('status', 1);
+    $query->orderBy('title', 'ASC');
+    $result = $query->execute()->fetchAll();
+    $data = array();
+    if ($result) {
+        foreach ($result as $n) {
+            $node = node_load($n->nid);
+            $data[] = '/sites/default/files/' . str_replace('public://', '', $node->field_image[LANGUAGE_NONE][0]['uri']);
+        }
+    }
+    return $data;
+}
+
+/**
+ * add template for saving
+ */
+function _component_get_saving($node = false)
+{
+    return theme('components_save', array('node' => $node));
+}
+
+/**
+ * add template for block saving
+ */
+function _component_get_block_save($node = false)
+{
+    return theme('components_block', array('node' => $node));
+}
+
+/**
+ * get menu function
+ * @param template_id
+ * @return array
+ */
+function _get_menu_tree($nid)
+{
+    //check template
+    $query = db_select('node', 'n');
+    $query->fields('n');
+    $query->join('field_data_field_template', 'ft', 'ft.entity_id=n.nid');
+    $query->condition('n.type', 'navbar');
+    $query->condition('ft.field_template_target_id', $nid);
+    $query->condition('n.status', 1);
+    $query->range(0, 1);
+    $query->orderBy('n.created', 'DESC');
+    $result = $query->execute()->fetchObject();
+    if ($result) {
+        $node = node_load($result->nid);
+        return theme('component_navbar', array('node' => $node));
+    } else {
+        return false;
+    }
+}
+
+/**
+ * Get link and class in navbar
+ */
+function _get_content_in_tag($string, $tagname, $closetagname)
+{
+
+    $start = strpos($string, $tagname);
+    $end = strpos($string, $closetagname, $start);
+    $len = strlen($closetagname);
+    $paragraph = substr($string, $start, $end - $start + $len);
+    return $paragraph;
+}
+
+/**
+ * save to nav
+ */
+
+function _save_to_nav($nid, $string)
+{
+    global $user;
+    $navcontent = _get_content_in_tag($string, '<nav class="navbar">', '</nav>');
+    if ($navcontent != '') {
+        $node = new stdClass();
+        $node->type = 'navbar';
+        $node->uid = $user->uid;
+        $node->status = NODE_PUBLISHED;
+        $node->created = REQUEST_TIME;
+        $node->language = LANGUAGE_NONE;
+        $node->title = 'Navbar';
+        //get link
+        $dom = new domDocument();
+        // load the html into the object ***/
+        $dom->loadHTML($navcontent);
+        //discard white space
+        $dom->preserveWhiteSpace = false;
+        $hTwo = $dom->getElementsByTagName('a');
+        foreach ($hTwo as $html) {
+            $attrs = $html->attributes;
+            $atr = array();
+            foreach ($attrs as $attr) {
+                if ($attr->name == 'class') {
+                    $atr['class'] = $attr->value;
+                }
+                if ($attr->name == 'href') {
+                    $atr['href'] = $attr->value;
+                }
+                if ($attr->name == 'target') {
+                    $atr['target'] = $attr->value;
+                }
+
+            }
+            $node->field_menu_title[LANGUAGE_NONE][]['value'] = $html->nodeValue;
+            $node->field_menu_link[LANGUAGE_NONE][]['value'] = $atr['href'];
+            $node->field_class[LANGUAGE_NONE][]['value'] = $atr['class'];
+            $node->field_menu_target[LANGUAGE_NONE][]['value'] = $atr['target'];
+        }
+        $node->field_template[LANGUAGE_NONE][0]['target_id'] = $nid;
+        node_save($node);
+    }
+
+
+}
+
+/**
+ * Add logo to header
+ */
+function _save_logo_to_header($nid, $string)
+{
+    global $user;
+    $img = _get_content_in_tag($string, '<img class="logo"', '/>');
+    if ($img != '') {
+        $node = new stdClass();
+        $node->type = 'header';
+        $node->uid = $user->uid;
+        $node->status = NODE_PUBLISHED;
+        $node->created = REQUEST_TIME;
+        $node->language = LANGUAGE_NONE;
+        $node->title = 'Header Logo';
+
+        $domI = new domDocument();
+        // load the html into the object ***/
+        $domI->loadHTML($img);
+        //discard white space
+        $domI->preserveWhiteSpace = false;
+        $domI = $domI->getElementsByTagName('img');
+        foreach ($domI as $htmlI) {
+            $attrsI = $htmlI->attributes;
+            $atrI = array();
+            foreach ($attrsI as $atrrI) {
+                if ($atrrI->name == 'src') {
+                    $atrI['src'] = $atrrI->value;
+                }
+                if ($atrrI->name == 'class') {
+                    $atrI['class'] = $atrrI->value;
+                }
+            }
+            $node->field_logo[LANGUAGE_NONE][]['value'] = $atrI['src'];
+            $node->field_class[LANGUAGE_NONE][]['value'] = $atrI['class'];
+        }
+        $header = _get_content_in_tag($string, '<header', '</header>');
+        $node->body[LANGUAGE_NONE][0]['value'] = $header;
+        $node->field_template[LANGUAGE_NONE][0]['target_id'] = $nid;
+        node_save($node);
+    }
+
+}
+
+/**
+ * Save footer to content
+ */
+function _save_footer($nid, $string)
+{
+    global $user;
+    $footer = _get_content_in_tag($string, '<footer', '</footer>');
+    if ($footer != '') {
+        $node = new stdClass();
+        $node->type = 'footer';
+        $node->uid = $user->uid;
+        $node->status = NODE_PUBLISHED;
+        $node->created = REQUEST_TIME;
+        $node->language = LANGUAGE_NONE;
+        $node->title = 'Footer';
+        $node->body[LANGUAGE_NONE][0]['value'] = $footer;
+        $node->field_template[LANGUAGE_NONE][0]['target_id'] = $nid;
+        node_save($node);
+    }
+
+}
+
+/**
+ * get menu function
+ * @param template_id
+ * @return array
+ */
+function _get_footer($nid)
+{
+    //check template
+    $query = db_select('node', 'n');
+    $query->fields('n');
+    $query->join('field_data_field_template', 'ft', 'ft.entity_id=n.nid');
+    $query->condition('n.type', 'footer');
+    $query->condition('ft.field_template_target_id', $nid);
+    $query->condition('n.status', 1);
+    $query->range(0, 1);
+    $query->orderBy('n.created', 'DESC');
+    $result = $query->execute()->fetchObject();
+    if ($result) {
+        $node = node_load($result->nid);
+        return theme('component_footer', array('node' => $node));
+    } else {
+        return false;
+    }
+}
+
+/**
+ * get heade logo function
+ * @param template_id
+ * @return array
+ */
+function _get_header($nid)
+{
+    //check template
+    $query = db_select('node', 'n');
+    $query->fields('n');
+    $query->join('field_data_field_template', 'ft', 'ft.entity_id=n.nid');
+    $query->condition('n.type', 'header');
+    $query->condition('ft.field_template_target_id', $nid);
+    $query->condition('n.status', 1);
+    $query->range(0, 1);
+    $query->orderBy('n.created', 'DESC');
+    $result = $query->execute()->fetchObject();
+    if ($result) {
+        $node = node_load($result->nid);
+        return theme('component_header', array('node' => $node));
+    } else {
+        return false;
+    }
+}
+
+/**
+ * get heade logo function
+ * @param template_id
+ * @return array
+ */
+function _get_content($node = false)
+{
+    return theme('component_content', array('node' => $node));
+}

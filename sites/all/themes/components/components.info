@@ -1,0 +1,34 @@
+name = Components Theme
+description = The custom theme for Components
+core = 7.x
+;base theme = bootstrap
+
+
+;;;;;;;;;;;;;;;;;;;;;
+;; Regions
+;;;;;;;;;;;;;;;;;;;;;
+
+regions[navigation]     = 'Navigation'
+regions[header]         = 'Top Bar'
+regions[highlighted]    = 'Highlighted'
+regions[help]           = 'Help'
+regions[content]        = 'Content'
+regions[sidebar_first]  = 'Primary'
+regions[sidebar_second] = 'Secondary'
+regions[footer]         = 'Footer'
+regions[page_top]       = 'Page top'
+regions[page_bottom]    = 'Page bottom'
+regions[grapes]    = 'Grapes'
+
+
+;;;;;;;;;;;;;;;;;;;;;
+;; Stylesheets
+;;;;;;;;;;;;;;;;;;;;;
+
+stylesheets[all][] = css/style.css
+stylesheets[all][] = splash/assets/css/user.css
+stylesheets[all][] = splash/assets/fonts/font-awesome.min.css
+stylesheets[all][] = splash/assets/bootstrap/css/bootstrap.min.css
+scripts[] = splash/assets/bootstrap/js/bootstrap.min.js
+scripts[] = js/html2canvas.js
+scripts[] = js/components.js
